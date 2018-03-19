@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 
-using LoonePermissions.API;
-using LoonePermissions.Commands;
-using LoonePermissions.Managers;
+using ChubbyQuokka.LoonePermissions;
+using ChubbyQuokka.LoonePermissions.API;
+using ChubbyQuokka.LoonePermissions.Managers;
+using ChubbyQuokka.LoonePermissions.Commands;
 
 using Rocket.API;
 using Rocket.Core;
@@ -11,37 +12,47 @@ using RocketLogger = Rocket.Core.Logging.Logger;
 
 using UnityEngine;
 
-namespace LoonePermissions.Managers
+namespace ChubbyQuokka.LoonePermissions.Managers
 {
-    public static class CommandManager
+    internal static class CommandManager
     {
-        public static Dictionary<string, ILooneCommand> commands;
+        static Dictionary<string, ILooneCommand> commands;
 
         public static void Initialize()
         {
             commands = new Dictionary<string, ILooneCommand>();
 
-            RegisterCommand("create", new CommandCreate());
+
+            //RegisterCommand("create", new CommandCreate());
             RegisterCommand("delete", new CommandDelete());
             RegisterCommand("add", new CommandAdd());
             RegisterCommand("remove", new CommandRemove());
             RegisterCommand("default", new CommandRemove());
-            RegisterCommand("group", new CommandGroup());
+            //RegisterCommand("group", new CommandGroup());
             RegisterCommand("migrate", new CommandMigrate());
+
+        }
+
+        public static void Destroy()
+        {
+            if (commands != null)
+            {
+                commands.Clear();
+                commands = null;
+            }
         }
 
         public static void Excecute(IRocketPlayer caller, string cmd, string[] args)
         {
-
             if (!TryGetCommand(cmd, out ILooneCommand command))
             {
-                LoonePermissions.Say(caller, "invalid_cmd", Color.red);
+                LoonePermissionsPlugin.Say(caller, "invalid_cmd", Color.red);
                 return;
             }
 
             if (!HasPermission(caller, cmd))
             {
-                LoonePermissions.Say(caller, "invalid_perms", Color.red);
+                LoonePermissionsPlugin.Say(caller, "invalid_perms", Color.red);
                 return;
             }
 
@@ -56,7 +67,9 @@ namespace LoonePermissions.Managers
         public static bool RegisterCommand(string str, ILooneCommand cmd)
         {
             if (commands.ContainsKey(str))
+            {
                 return false;
+            }
 
             commands.Add(str, cmd);
             return true;
@@ -66,13 +79,12 @@ namespace LoonePermissions.Managers
         {
             return commands.TryGetValue(str, out cmd);
         }
-
     }
 }
 
-namespace LoonePermissions
+namespace ChubbyQuokka.LoonePermissions
 {
-    public class LooneCommand : IRocketCommand
+    public sealed class LooneCommand : IRocketCommand
     {
         public AllowedCaller AllowedCaller => AllowedCaller.Both;
 
@@ -88,21 +100,28 @@ namespace LoonePermissions
 
         public void Execute(IRocketPlayer caller, string[] command)
         {
-            if (command.Length == 0) {
-                if (!(caller is ConsolePlayer))
-                    LoonePermissions.GameHook.OpenSteamBrowser(caller, "https://github.com/ChubbyQuokka/Loone-Permissions/wiki");
-                else
+            if (command.Length == 0)
+            {
+                if (caller is ConsolePlayer)
+                {
                     RocketLogger.Log("https://github.com/ChubbyQuokka/Loone-Permissions/wiki");
-
-                return;
+                }
+                else
+                {
+                    LoonePermissionsPlugin.GameHook.OpenSteamBrowser(caller, "https://github.com/ChubbyQuokka/Loone-Permissions/wiki");
+                }
             }
+            else
+            {
+                string[] args = new string[command.Length - 1];
 
-            string[] args = new string[command.Length - 1];
+                for (int i = 1; i < command.Length; i++)
+                {
+                    args[i - 1] = command[i];
+                }
 
-            for (int i = 1; i < command.Length; i++)
-                args[i - 1] = command[i];
-
-            CommandManager.Excecute(caller, command[0], args);
+                CommandManager.Excecute(caller, command[0], args);
+            }
         }
     }
 }
